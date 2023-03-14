@@ -1,0 +1,58 @@
+name: 'Run On Msys2'
+author: 'Atom Long (@atomlong)'
+description: 'Automatically build msys2 PKGBUILD and deploy packages to cloud drive.'
+
+branding:
+  icon: refresh-ccw
+  color: orange
+
+inputs:
+  rcloneConfig:
+    description: 'The content rclone config file.'
+    required: true
+    default: ''
+  pgpKey:
+    description: 'PGP private key used to Sign alarm package.'
+    required: false
+    default: ''
+  pgpKeyPassword:
+    description: 'The password of PGP private key.'
+    required: false
+    default: ''
+  deployPath:
+    description: 'The path to deploy msys2 package. such as onedrive:mirrors/msys2/msys/x86_64/'
+    required: true
+    default: ''
+  pacmanRepo:
+    description: 'The repository to which the msys2 package belongs, such as core,community,extra.'
+    required: false
+    default: 'msys'
+  customRepos:
+    description: 'Custom package repositories to install packages via pacman, such as [msys]http://mirror.msys2.org/$arch/$repo. Use commas to separate multiple repositories.'
+    required: false
+    default: ''
+outputs:
+  has_new_commits:
+    description: 'true when new commits were included in this sync'
+
+runs:
+  using: "composite"
+  steps:
+  - name: build package
+    if: ${{ runner.os == 'Windows' }}
+    shell: "msys2 {0}"
+    run: |
+      # default variables
+      export CI_REPO=${GITHUB_REPOSITORY}
+      export CI_BUILD_DIR=${GITHUB_WORKSPACE}
+      export CI_COMMIT=${GITHUB_SHA}
+      export CI_BRANCH=${GITHUB_REF/refs\/heads\//}
+      export CI_BUILD_NUMBER=${GITHUB_RUN_NUMBER}
+      # configurable variables
+      export RCLONE_CONF='${{ inputs.rcloneConfig }}'
+      export PGP_KEY='${{ inputs.pgpKey }}'
+      export PGP_KEY_PASSWD='${{ inputs.pgpKeyPassword }}'
+      export DEPLOY_PATH='${{ inputs.deployPath }}'
+      export PACMAN_REPO='${{ inputs.pacmanRepo }}'
+      export CUSTOM_REPOS='${{ inputs.customRepos }}'
+      ${GITHUB_ACTION_PATH}/ci-build.sh
