@@ -40,8 +40,17 @@ outputs:
 runs:
   using: "composite"
   steps:
+  - name: Setup Msys2
+    if: ${{ runner.os == 'Windows' }}
+    uses: msys2/setup-msys2@v2
+    id: setup
+    with:
+      msystem: MSYS
+      install: git base-devel msys2-devel
+      update: true
   - name: build package
     if: ${{ runner.os == 'Windows' }}
+    id: build
     shell: "msys2 {0}"
     run: |
       # default variables
