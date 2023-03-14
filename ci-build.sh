@@ -200,12 +200,13 @@ build_package()
 [ -n "${PKG_ARTIFACTS_PATH}" ] || { echo "You must set PKG_ARTIFACTS_PATH firstly."; return 1; }
 [ -n "${SRC_ARTIFACTS_PATH}" ] || { echo "You must set SRC_ARTIFACTS_PATH firstly."; return 1; }
 [ "$(_last_package_hash)" == "$(_now_package_hash)" ] && { echo "The package '${package}' has beed built, skip."; return 0; }
+local pkgname item
 unset PKGEXT SRCEXT
 
 rm -rf ${PKG_ARTIFACTS_PATH}
 rm -rf ${SRC_ARTIFACTS_PATH}
 
-_package_info PKGEXT SRCEXT
+_package_info pkgname PKGEXT SRCEXT
 [ -n "${PKGEXT}" ] || PKGEXT=$(grep -Po "^PKGEXT=('|\")?\K[^'\"]+" /etc/makepkg.conf)
 export PKGEXT=${PKGEXT}
 [ -n "${SRCEXT}" ] || SRCEXT=$(grep -Po "^SRCEXT=('|\")?\K[^'\"]+" /etc/makepkg.conf)
@@ -218,6 +219,10 @@ makepkg --noconfirm --noprogressbar --allsource --skippgpcheck
 mkdir -pv ${PKG_ARTIFACTS_PATH}
 mv -vf *${PKGEXT} ${PKG_ARTIFACTS_PATH}
 true
+} || {
+for item in ${pkgname[@]}; do
+export FILED_PKGS+=(${PACMAN_REPO}/${item})
+done
 }
 
 (ls *${SRCEXT} &>/dev/null) && {
@@ -240,7 +245,7 @@ _lock_file ${PKG_DEPLOY_PATH}/${PACMAN_REPO}.db
 
 echo "Adding package information to datdabase ..."
 pushd ${PKG_ARTIFACTS_PATH}
-export PKG_FILES=(${PKG_FILES[@]} $(ls *${PKGEXT}))
+export PKG_FILES+=($(ls *${PKGEXT}))
 for file in ${PACMAN_REPO}.{db,files}{,.tar.xz}{,.old}; do
 rclone lsf ${PKG_DEPLOY_PATH}/${file} &>/dev/null || continue
 while ! rclone copy ${PKG_DEPLOY_PATH}/${file} ${PWD}; do :; done
@@ -278,6 +283,7 @@ message="<p>Successfully created the following package archive.</p>"
 for item in ${PKG_FILES[@]}; do
 message+="<p><font color=\"green\">${item}</font></p>"
 done
+echo "status=Success" >>$GITHUB_OUTPUT
 }
 
 [ -n "${FILED_PKGS}" ] && {
@@ -285,6 +291,7 @@ message+="<p>Failed to build following packages. </p>"
 for item in ${FILED_PKGS[@]}; do
 message+="<p><font color=\"red\">${item}</font></p>"
 done
+echo "status=Failed" >>$GITHUB_OUTPUT
 }
 
 [ "${1}" ] && message+="<p>${1}<p>"
