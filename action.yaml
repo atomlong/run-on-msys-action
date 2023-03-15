@@ -38,6 +38,9 @@ outputs:
   message:
     description: 'Build message.'
     value: ${{ steps.build.outputs.message }}
+  logs:
+    description: 'Build log archive.'
+    value: ${{ steps.build.outputs.logs }}
 
 runs:
   using: "composite"
@@ -48,7 +51,7 @@ runs:
     id: setup
     with:
       msystem: MSYS
-      install: git base-devel msys2-devel
+      install: git zip base-devel msys2-devel
       update: true
   - name: build package
     if: ${{ runner.os == 'Windows' }}
@@ -68,4 +71,13 @@ runs:
       export DEPLOY_PATH='${{ inputs.deployPath }}'
       export PACMAN_REPO='${{ inputs.pacmanRepo }}'
       export CUSTOM_REPOS='${{ inputs.customRepos }}'
-      ${GITHUB_ACTION_PATH}/ci-build.sh
+      ${GITHUB_ACTION_PATH}/ci-build.sh | tee build-${CI_BUILD_NUMBER}.log
+      zip -z -j build-${CI_BUILD_NUMBER}-log.zip build-${CI_BUILD_NUMBER}.log << EOF
+      CI_REPO: ${CI_REPO}
+      CI_BRANCH: ${CI_BRANCH}
+      CI_COMMIT: ${CI_COMMIT}
+      CI_BUILD_NUMBER: ${CI_BUILD_NUMBER}
+      .
+      EOF
+      rm -f build-${CI_BUILD_NUMBER}.log
+      echo "logs=build-${CI_BUILD_NUMBER}-log.zip" >> $GITHUB_OUTPUT
