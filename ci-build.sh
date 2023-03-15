@@ -53,6 +53,7 @@ t_s=$(date '+%s')
 echo "${instid}" >> lockfile.lck
 sed -i '/^\s*$/d' lockfile.lck
 rclone moveto lockfile.lck ${lockfile}
+LOCK_FILES+=(${1})
 
 t_s=0
 last_s=""
@@ -83,11 +84,21 @@ _release_file()
 local lockfile=${1}.lck
 local instid=$$
 [ "${CI}" == "true" ] && instid="${CI_REPO}:${CI_BUILD_NUMBER}"
-rclone lsf ${lockfile} &>/dev/null || return 0
+rclone lsf ${lockfile} &>/dev/null || { LOCK_FILES=(${LOCK_FILES[@]/${1}}); return 0; }
 rclone cat ${lockfile} | awk "BEGIN {P=0} {if (\$1 != \"${instid}\") P=1; if (P == 1 && NF) print}" > lockfile.lck
 [ -s lockfile.lck ] && rclone moveto lockfile.lck ${lockfile} || rclone deletefile ${lockfile}
 rm -vf lockfile.lck
+LOCK_FILES=(${LOCK_FILES[@]/${1}})
 return 0
+}
+
+# Release all remote files to allow them to be modified by another instances.
+_release_all_files()
+{
+local item
+for item in ${LOCK_FILES[@]}; do
+_release_file ${item}
+done
 }
 
 # get last commit hash of one package
@@ -250,7 +261,10 @@ for file in ${PACMAN_REPO}.{db,files}{,.tar.xz}{,.old}; do
 rclone lsf ${PKG_DEPLOY_PATH}/${file} &>/dev/null || continue
 while ! rclone copy ${PKG_DEPLOY_PATH}/${file} ${PWD}; do :; done
 done
-old_pkgs=($(repo-add "${PACMAN_REPO}.db.tar.xz" *${PKGEXT} | tee /dev/stderr | grep -Po "\bRemoving existing entry '\K[^']+(?=')" || true))
+file=/tmp/repo-add.log.$$
+repo-add "${PACMAN_REPO}.db.tar.xz" *${PKGEXT} | tee ${file}
+old_pkgs=($(grep -Po "\bRemoving existing entry '\K[^']+(?=')" ${file} || true))
+rm -f ${file}
 
 echo "Tring to delete old files on remote server ..."
 for pkg in ${old_pkgs[@]}; do
@@ -308,6 +322,8 @@ return 0
 # Run from here
 cd ${CI_BUILD_DIR}
 message 'Install build environment.'
+unset LOCK_FILES
+trap "_release_all_files" EXIT
 [ -z "${PACMAN_REPO}" ] && { echo "Environment variable 'PACMAN_REPO' is required."; exit 1; }
 [[ ${PACMAN_REPO} =~ '$' ]] && eval export PACMAN_REPO=${PACMAN_ARCH}
 [ -z "${PACMAN_ARCH}" ] && export PACMAN_ARCH=$(sed -nr 's|^CARCH=\"(\w+).*|\1|p' /etc/makepkg.conf)
@@ -337,7 +353,6 @@ base64 --decode <<< "${RCLONE_CONF}" > ${RCLONE_CONFIG_PATH} ||
 printf "${RCLONE_CONF}" > ${RCLONE_CONFIG_PATH}
 import_pgp_seckey
 
-trap "_release_file ${PKG_DEPLOY_PATH}/${PACMAN_REPO}.db" EXIT
 success 'The build environment is ready successfully.'
 # Build
 execute 'Building packages' build_package

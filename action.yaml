@@ -34,8 +34,10 @@ inputs:
 outputs:
   status:
     description: 'Success when packages were build successfully, otherwise Failed.'
+    value: ${{ steps.build.outputs.status }}
   message:
     description: 'Build message.'
+    value: ${{ steps.build.outputs.message }}
 
 runs:
   using: "composite"
@@ -57,7 +59,7 @@ runs:
       export CI_REPO=${GITHUB_REPOSITORY}
       export CI_BUILD_DIR=${GITHUB_WORKSPACE}
       export CI_COMMIT=${GITHUB_SHA}
-      export CI_BRANCH=${GITHUB_REF/refs\/heads\//}
+      export CI_BRANCH=${GITHUB_REF_NAME}
       export CI_BUILD_NUMBER=${GITHUB_RUN_NUMBER}
       # configurable variables
       export RCLONE_CONF='${{ inputs.rcloneConfig }}'
