@@ -135,6 +135,14 @@ _release_file "${PKG_DEPLOY_PATH}/${marker}"
 return 0
 }
 
+# Function: Sign one file.
+_create_signature()
+{
+[ -n "${PGP_KEY_PASSWD}" ] || { echo "You must set PGP_KEY_PASSWD firstly."; return 1; }
+local pkg=${1}
+[ -f ${pkg} ] && gpg --pinentry-mode loopback --passphrase "${PGP_KEY_PASSWD}" -o "${pkg}.sig" -b "${pkg}"
+}
+
 # Run command with status
 execute(){
     local status="${1}"
@@ -174,25 +182,16 @@ done
 # Function: Sign one or more pkgballs.
 create_package_signature()
 {
-[ -n "${PGP_KEY_PASSWD}" ] || { echo "You must set PGP_KEY_PASSWD firstly."; return 1; }
 local pkg
 # signature for distrib packages.
-(ls ${PKG_ARTIFACTS_PATH}/*${PKGEXT} &>/dev/null) && {
-pushd ${PKG_ARTIFACTS_PATH}
-for pkg in *${PKGEXT}; do
-gpg --pinentry-mode loopback --passphrase "${PGP_KEY_PASSWD}" -o "${pkg}.sig" -b "${pkg}"
+for pkg in $(ls ${PKG_ARTIFACTS_PATH}/*${PKGEXT}); do
+_create_signature ${pkg} || { echo "Failed to create signature for ${pkg}"; return 1; }
 done
-popd
-}
 
 # signature for source packages.
-(ls ${SRC_ARTIFACTS_PATH}/*${SRCEXT} &>/dev/null) && {
-pushd ${SRC_ARTIFACTS_PATH}
-for pkg in *${SRCEXT}; do
-gpg --pinentry-mode loopback --passphrase "${PGP_KEY_PASSWD}" -o "${pkg}.sig" -b "${pkg}"
+for pkg in $(ls ${SRC_ARTIFACTS_PATH}/*${SRCEXT}); do
+_create_signature ${pkg} || { echo "Failed to create signature for ${pkg}"; return 1; }
 done
-popd
-}
 
 return 0
 }
@@ -266,6 +265,10 @@ repo-add "${PACMAN_REPO}.db.tar.xz" *${PKGEXT} | tee ${file}
 old_pkgs=($(grep -Po "\bRemoving existing entry '\K[^']+(?=')" ${file} || true))
 rm -f ${file}
 
+echo "Generating database signature ..."
+_create_signature ${PACMAN_REPO}.db || { echo "Failed to create signature for ${PACMAN_REPO}.db"; return 1; }
+popd
+
 echo "Tring to delete old files on remote server ..."
 for pkg in ${old_pkgs[@]}; do
 for file in ${pkg}-{${PACMAN_ARCH},any}.pkg.tar.{xz,zst}{,.sig}; do
@@ -282,7 +285,6 @@ rclone move ${PKG_ARTIFACTS_PATH} ${PKG_DEPLOY_PATH} --copy-links --delete-empty
 (ls ${SRC_ARTIFACTS_PATH}/*${SRCEXT} &>/dev/null) && 
 rclone move ${SRC_ARTIFACTS_PATH} ${SRC_DEPLOY_PATH} --copy-links --delete-empty-src-dirs
 
-popd
 _release_file ${PKG_DEPLOY_PATH}/${PACMAN_REPO}.db
 _record_package_hash
 }
@@ -344,7 +346,7 @@ SRC_DEPLOY_PATH=$(dirname ${PKG_DEPLOY_PATH})/sources
 PKG_ARTIFACTS_PATH=${PWD}/artifacts/${PACMAN_REPO}/${PACMAN_ARCH}/package
 SRC_ARTIFACTS_PATH=${PWD}/artifacts/${PACMAN_REPO}/${PACMAN_ARCH}/sources
 
-pacman --sync --needed --noconfirm --disable-download-timeout base-devel rclone-bin expect git jq
+pacman --sync --refresh --needed --noconfirm --disable-download-timeout base-devel rclone-bin expect git jq
 
 RCLONE_CONFIG_PATH=$(rclone config file | tail -n1)
 mkdir -pv $(dirname ${RCLONE_CONFIG_PATH})
