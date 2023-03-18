@@ -347,6 +347,8 @@ PKG_ARTIFACTS_PATH=${PWD}/artifacts/${PACMAN_REPO}/${PACMAN_ARCH}/package
 SRC_ARTIFACTS_PATH=${PWD}/artifacts/${PACMAN_REPO}/${PACMAN_ARCH}/sources
 
 pacman --sync --refresh --needed --noconfirm --disable-download-timeout base-devel rclone-bin expect git jq
+git config --global user.name "Action"
+git config --global user.email "action@github.com"
 
 RCLONE_CONFIG_PATH=$(rclone config file | tail -n1)
 mkdir -pv $(dirname ${RCLONE_CONFIG_PATH})
