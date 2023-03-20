@@ -22,29 +22,14 @@ As with any Github Action, you must include it in a workflow for your repo to ru
 
 ### Input Variables
 
-#### Basic Use
-
 | Name                | Required?           | Default           | Example |
 | ------------------- |:------------------: | ----------------- | ----------
-| upstream_repository | :white_check_mark:  |                   | aormsby/Fork-Sync-With-Upstream-action  |
-| upstream_branch     | :white_check_mark:  |                   | 'master', 'main', 'dev'                 |
-| target_branch       | :white_check_mark:  |                   | 'master', 'main', 'prod'                |
-| github_token        |                     |                   | ${{ secrets.GITHUB_TOKEN }}             |
-
-For **github_token** - use `${{ secrets.GITHUB_TOKEN }}` where `GITHUB_TOKEN` is the name of the secret in your repo ([see docs for help](https://docs.github.com/en/actions/configuring-and-managing-workflows/using-variables-and-secrets-in-a-workflow))
-
-#### Advanced Use (all optional args)
-
-| Name                   | Required?           | Default             | Example |
-| ---------------------- |:------------------: | ------------------- | ----------
-| git_checkout_args      |                     |                     | '--recurse-submodules'     |
-| git_fetch_args         |                     |                     | '--tags'                   |
-| git_log_format_args    |                     | '--pretty=oneline'  | '--graph --pretty=oneline' |
-| git_pull_args          |                     | 'pull'              | '--ff-only'                |
-| git_push_args          |                     |                     | '--force'                  |
-| git_user               |                     | 'Action - Fork Sync'|                            |
-| git_email              |                     | 'action@github.com' |                            |
-| git_pull_rebase_config |                     | 'false'             |                            |
+| rcloneConfig        | :white_check_mark:  |                   | '[onedrive]type = onedrive...'  |
+| pgpKey              | :white_check_mark:  |                   | '-----BEGIN PGP PRIVATE KEY BLOCK-----...' |
+| pgpKeyPassword      | :white_check_mark:  |                   | 'password' |
+| pacmanRepo          |                     |                   | 'msys'             |
+| deployPath          |                     |                   | 'onedrive:mirrors/msys2'             |
+| customRepos         |                     |                   | '[msys]https://efiles.cf/msys2/$repo/$arch/' |
 
 ##### Git Config Settings
 
@@ -68,23 +53,12 @@ Again, not recommended. But if you don't care about losing some data, just choos
 
 ### Output Variables
 
-**has_new_commits** - True when new commits were included in this sync
-
-## Sync Process - Quick Overview
-
-Right now, the `main.js` script only exists to execute `upstream-sync.sh`. It's possible that future updates will add functionality. The shell script does the following:
-
-1. Check if you included `upstream_branch` in your inputs (required!)
-2. Make sure the right local branch is checked out (`target_branch`)
-3. Add the upstream repo you listed
-4. Check if there are any new commits to sync (and prints any new commits as oneline statements)
-5. Sync from the upstream repo (generally by pulling)
-6. Push to the target branch of the target repo
-
-**Ta-da!**
+**status** - Success when packages were build successfully, otherwise Failed.
+**message** - Build message.
+**logs** - Build log archive.
 
 ## Sample Workflow
-This workflow is currently in use in some of my forked repos. [View Live Sample](https://github.com/aormsby/F-hugo-theme-hello-friend/blob/Working/.github/workflows/wf-fork-sync.yaml)
+This workflow is currently in use in some of my msys2 repos. 
 
 ```yaml
 on:
@@ -94,35 +68,34 @@ on:
 
   workflow_dispatch:  # click the button on Github repo!
 
-
 jobs:
   sync_with_upstream:
-    runs-on: ubuntu-latest
-    name: Sync main with upstream latest
-
+    runs-on: windows-latest
+    name: Build Msys2 Package
     steps:
     # Step 1: run a standard checkout action, provided by github
     - name: Checkout main
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         ref: main
         # submodules: 'recursive'     ### may be needed in your situation
 
-    # Step 2: run this sync action - specify the upstream repo, upstream branch to sync with, and target sync branch
-    - name: Pull (Fast-Forward) upstream changes
-      id: sync
-      uses: atomlong/Sync-With-Upstream-action@master
+    # Step 2: run this sync action - specify the rclone config, PGP key & password, and the path to deploy package.
+    - name: Run on Msys2
+      id: runcmd
+      uses: atomlong/run-on-msys-action@master
       with:
-        upstream_repository: https://github.com/atomlong/Fork-Sync-With-Upstream-action
-        upstream_branch: master
-        target_branch: master
-        git_pull_args: --ff-only                    # optional arg use, defaults to simple 'pull'
-        github_token: ${{ secrets.GITHUB_TOKEN }}   # optional, for accessing repos that require authentication
+        rcloneConfig: ${{ secrets.RCLONE_CONF }}
+        pgpKey: ${{ secrets.PGP_KEY }}
+        pgpKeyPassword: ${{ secrets.PGP_KEY_PASSWD }}
+        pacmanRepo: ${{ secrets.PACMAN_REPO }}
+        deployPath: ${{ secrets.DEPLOY_PATH }}
+        customRepos: ${{ secrets.CUSTOM_REPOS }}
 
-    # Step 3: Display a message if 'sync' step had new commits (simple test)
+    # Step 3: Display a message if 'runcmd' step sucess
     - name: Check for new commits
-      if: steps.sync.outputs.has_new_commits
-      run: echo "There were new commits."
+      if: steps.runcmd.outputs.status == Success
+      run: echo "The package was build successfully."
 
     # Step 4: Print a helpful timestamp for your records (not required, just nice)
     - name: Timestamp
