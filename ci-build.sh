@@ -184,12 +184,12 @@ create_package_signature()
 {
 local pkg
 # signature for distrib packages.
-for pkg in $(ls ${PKG_ARTIFACTS_PATH}/*${PKGEXT}); do
+for pkg in $(ls ${PKG_ARTIFACTS_PATH}/*${PKGEXT} 2>/dev/null); do
 _create_signature ${pkg} || { echo "Failed to create signature for ${pkg}"; return 1; }
 done
 
 # signature for source packages.
-for pkg in $(ls ${SRC_ARTIFACTS_PATH}/*${SRCEXT}); do
+for pkg in $(ls ${SRC_ARTIFACTS_PATH}/*${SRCEXT} 2>/dev/null); do
 _create_signature ${pkg} || { echo "Failed to create signature for ${pkg}"; return 1; }
 done
 
