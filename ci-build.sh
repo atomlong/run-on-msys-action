@@ -209,7 +209,7 @@ build_package()
 {
 [ -n "${PKG_ARTIFACTS_PATH}" ] || { echo "You must set PKG_ARTIFACTS_PATH firstly."; return 1; }
 [ -n "${SRC_ARTIFACTS_PATH}" ] || { echo "You must set SRC_ARTIFACTS_PATH firstly."; return 1; }
-[ "$(_last_package_hash)" == "$(_now_package_hash)" ] && { echo "The package '${package}' has beed built, skip."; return 0; }
+[ "$(_last_package_hash)" == "$(_now_package_hash)" ] && { echo "The package '${PACMAN_REPO}/${CI_REPO#*/}' has beed built, skip."; return 0; }
 local pkgname item
 unset PKGEXT SRCEXT
 
