@@ -346,7 +346,7 @@ SRC_DEPLOY_PATH=$(dirname ${PKG_DEPLOY_PATH})/sources
 PKG_ARTIFACTS_PATH=${PWD}/artifacts/${PACMAN_REPO}/${PACMAN_ARCH}/package
 SRC_ARTIFACTS_PATH=${PWD}/artifacts/${PACMAN_REPO}/${PACMAN_ARCH}/sources
 
-pacman --sync --refresh --needed --noconfirm --disable-download-timeout base-devel rclone-bin expect git jq
+pacman --sync --refresh --needed --noconfirm --disable-download-timeout rclone-bin jq
 git config --global user.name "Action"
 git config --global user.email "action@github.com"
 
