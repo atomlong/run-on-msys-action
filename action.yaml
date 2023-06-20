@@ -51,7 +51,7 @@ runs:
     id: setup
     with:
       msystem: MSYS
-      install: git zip base-devel
+      install: git zip base-devel msys2-devel
       update: true
   - name: build package
     if: ${{ runner.os == 'Windows' }}
