@@ -71,6 +71,7 @@ runs:
       export DEPLOY_PATH='${{ inputs.deployPath }}'
       export PACMAN_REPO='${{ inputs.pacmanRepo }}'
       export CUSTOM_REPOS='${{ inputs.customRepos }}'
+      export MSYS="winsymlinks:native"
       ${GITHUB_ACTION_PATH}/ci-build.sh | tee build-${CI_BUILD_NUMBER}.log
       zip -z -j build-${CI_BUILD_NUMBER}-log.zip build-${CI_BUILD_NUMBER}.log << EOF
       CI_REPO: ${CI_REPO}
