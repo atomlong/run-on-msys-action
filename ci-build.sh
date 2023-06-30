@@ -173,9 +173,10 @@ name=$(sed -n -r 's/\[(\w+)\].*/\1/p' <<< ${repo})
 cp -vf /etc/pacman.conf{,.orig}
 sed -r 's/]/&\nServer = /' <<< ${repo} >> /etc/pacman.conf
 sed -i -r 's/^(SigLevel\s*=\s*).*/\1Never/' /etc/pacman.conf
-pacman --sync --refresh --needed --noconfirm --disable-download-timeout ${name}-keyring && name="" || name="SigLevel = Never\n"
+pacman --sync --refresh --needed --noconfirm --disable-download-timeout ${name}-keyring && name="" || name="SigLevel = Never"
 mv -vf /etc/pacman.conf{.orig,}
-sed -r "s/]/&\n${name}Server = /" <<< ${repo} >> /etc/pacman.conf
+repo=$(sed -r "s/]/&\\\\n${name}\\\\nServer = /;s/$/\\\\n/"<<< ${repo})
+sed -i -r "/^\[msys\]/i${repo}" /etc/pacman.conf
 done
 }
 
